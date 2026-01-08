@@ -11,8 +11,9 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy dependency files and source code needed for build
+COPY pyproject.toml README.md ./
+COPY src/ src/
 
 # Build wheels for dependencies
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
