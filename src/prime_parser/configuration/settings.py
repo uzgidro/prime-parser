@@ -124,15 +124,27 @@ def get_settings() -> Settings:
         ConfigurationError: If configuration cannot be loaded
     """
     env = os.getenv("ENVIRONMENT", "dev")
+    config_filename = f"{env}.yaml"
 
-    # Find config file relative to this file's location
-    config_dir = Path(__file__).parent.parent.parent.parent / "config"
-    config_file = config_dir / f"{env}.yaml"
+    # Priority 1: CONFIG_DIR environment variable
+    if config_dir_env = os.getenv("CONFIG_DIR"):
+        config_file = Path(config_dir_env) / config_filename
+        if config_file.exists():
+            return Settings.from_yaml(config_file)
 
-    if not config_file.exists():
-        raise ConfigurationError(
-            f"Configuration file not found: {config_file}. "
-            f"Please ensure {env}.yaml exists in the config directory."
-        )
+    # Priority 2: /app/config (Docker standard)
+    docker_config_file = Path("/app/config") / config_filename
+    if docker_config_file.exists():
+        return Settings.from_yaml(docker_config_file)
 
-    return Settings.from_yaml(config_file)
+    # Priority 3: Relative to source (Local development)
+    local_config_dir = Path(__file__).parent.parent.parent.parent / "config"
+    local_config_file = local_config_dir / config_filename
+    if local_config_file.exists():
+        return Settings.from_yaml(local_config_file)
+
+    # If none found
+    raise ConfigurationError(
+        f"Configuration file {config_filename} not found in any of the expected locations: "
+        f"CONFIG_DIR env var, /app/config, or {local_config_dir}."
+    )
