@@ -56,4 +56,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:19779/').read()"
 
 # Run application
-CMD ["uvicorn", "src.prime_parser.main:app", "--host", "0.0.0.0", "--port", "19779"]
+CMD ["uvicorn", "prime_parser.main:app", "--host", "0.0.0.0", "--port", "19779"]
