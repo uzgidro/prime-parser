@@ -4,7 +4,7 @@ import httpx
 import structlog
 from typing import Any
 
-from prime_parser.config.settings import ForwardingConfig
+from prime_parser.configuration.settings import ForwardingConfig
 from prime_parser.models.domain_models import ParsedData
 from prime_parser.utils.exceptions import ForwardingError
 from prime_parser.utils.retry import retry_with_backoff

@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from prime_parser.api.routes import router
-from prime_parser.config.settings import get_settings
+from prime_parser.configuration.settings import get_settings
 from prime_parser.utils.exceptions import ConfigurationError
 
 

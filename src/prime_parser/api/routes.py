@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Up
 from fastapi.responses import JSONResponse
 
 from prime_parser.clients.http_client import HTTPClient
-from prime_parser.config.settings import Settings
+from prime_parser.configuration.settings import Settings
 from prime_parser.core.pdf_parser import PDFParser
 from prime_parser.models.domain_models import ParsedData
 from prime_parser.utils.exceptions import DataExtractionError, ForwardingError, PDFParsingError
