@@ -127,7 +127,8 @@ def get_settings() -> Settings:
     config_filename = f"{env}.yaml"
 
     # Priority 1: CONFIG_DIR environment variable
-    if config_dir_env = os.getenv("CONFIG_DIR"):
+    config_dir_env = os.getenv("CONFIG_DIR")
+    if config_dir_env is not None:
         config_file = Path(config_dir_env) / config_filename
         if config_file.exists():
             return Settings.from_yaml(config_file)
