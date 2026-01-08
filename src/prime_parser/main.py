@@ -7,9 +7,9 @@ import structlog
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from .api.routes import router
-from .config.settings import get_settings
-from .utils.exceptions import ConfigurationError
+from prime_parser.api.routes import router
+from prime_parser.config.settings import get_settings
+from prime_parser.utils.exceptions import ConfigurationError
 
 
 def configure_logging(log_level: str = "INFO") -> None:
@@ -36,8 +36,10 @@ def configure_logging(log_level: str = "INFO") -> None:
     )
 
 
+from typing import AsyncGenerator
+
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager.
 
     Args:
@@ -99,12 +101,12 @@ def create_app() -> FastAPI:
 
     # Add health check at root
     @app.get("/", include_in_schema=False)
-    async def root():
+    async def root() -> dict[str, str]:
         return {"service": "prime-parser", "status": "running", "version": "1.0.0"}
 
     # Global exception handler
     @app.exception_handler(ConfigurationError)
-    async def configuration_error_handler(request, exc):
+    async def configuration_error_handler(request: object, exc: ConfigurationError) -> JSONResponse:
         return JSONResponse(
             status_code=500,
             content={

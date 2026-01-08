@@ -9,8 +9,8 @@ from typing import Any
 import pdfplumber
 import structlog
 
-from ..models.domain_models import HydropowerReport, ParsedData, StationData
-from ..utils.exceptions import DataExtractionError, PDFParsingError
+from prime_parser.models.domain_models import HydropowerReport, ParsedData, StationData
+from prime_parser.utils.exceptions import DataExtractionError, PDFParsingError
 
 logger = structlog.get_logger()
 

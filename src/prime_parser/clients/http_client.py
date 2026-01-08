@@ -2,11 +2,12 @@
 
 import httpx
 import structlog
+from typing import Any
 
-from ..config.settings import ForwardingConfig
-from ..models.domain_models import ParsedData
-from ..utils.exceptions import ForwardingError
-from ..utils.retry import retry_with_backoff
+from prime_parser.config.settings import ForwardingConfig
+from prime_parser.models.domain_models import ParsedData
+from prime_parser.utils.exceptions import ForwardingError
+from prime_parser.utils.retry import retry_with_backoff
 
 logger = structlog.get_logger()
 
@@ -28,7 +29,7 @@ class HTTPClient:
             max_attempts=config.retry.max_attempts,
         )
 
-    async def send_data(self, data: ParsedData) -> dict[str, any]:
+    async def send_data(self, data: ParsedData) -> dict[str, Any]:
         """Send parsed data to external service with retry logic.
 
         Args:
@@ -62,7 +63,7 @@ class HTTPClient:
                 response=result,
             )
 
-            return result
+            return result  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(
@@ -75,7 +76,7 @@ class HTTPClient:
                 f"Failed to forward data to {self.config.endpoint}: {e}"
             ) from e
 
-    async def _send_request(self, data: ParsedData) -> dict[str, any]:
+    async def _send_request(self, data: ParsedData) -> dict[str, Any]:
         """Execute HTTP POST request to external service.
 
         Args:
@@ -123,7 +124,7 @@ class HTTPClient:
 
             # Try to parse JSON response
             try:
-                return response.json()
+                return response.json()  # type: ignore[no-any-return]
             except Exception:
                 # If response is not JSON, return status info
                 return {

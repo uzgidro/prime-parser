@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 import structlog
 
-from ..config.settings import Settings, get_settings
+from prime_parser.config.settings import Settings, get_settings
 
 logger = structlog.get_logger()
 

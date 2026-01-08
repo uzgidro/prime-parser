@@ -10,12 +10,12 @@ import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 
-from ..clients.http_client import HTTPClient
-from ..config.settings import Settings
-from ..core.pdf_parser import PDFParser
-from ..models.domain_models import ParsedData
-from ..utils.exceptions import DataExtractionError, ForwardingError, PDFParsingError
-from .dependencies import get_settings_dependency, validate_api_key
+from prime_parser.clients.http_client import HTTPClient
+from prime_parser.config.settings import Settings
+from prime_parser.core.pdf_parser import PDFParser
+from prime_parser.models.domain_models import ParsedData
+from prime_parser.utils.exceptions import DataExtractionError, ForwardingError, PDFParsingError
+from prime_parser.api.dependencies import get_settings_dependency, validate_api_key
 
 logger = structlog.get_logger()
 
