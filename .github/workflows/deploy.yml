@@ -34,8 +34,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/srmt-parser:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/srmt-parser:${{ steps.slug.outputs.sha8 }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/prime-parser:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/prime-parser:${{ steps.slug.outputs.sha8 }}
 
       - name: Trigger Watchtower Update
         run: |
