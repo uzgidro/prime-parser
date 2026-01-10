@@ -138,18 +138,26 @@ class PDFParser:
         Raises:
             DataExtractionError: If summary row not found or energy cannot be parsed
         """
-        target_col_idx = self._find_target_column_index(tables)
-        
+        # Find all GES rows and summary row
+        ges_rows = []
+        summary_row = None
+        summary_row_idx = None
+
         for table_idx, table in enumerate(tables):
             for row_idx, row in enumerate(table):
-                if not row:
+                if not row or not row[0]:
                     continue
 
-                # Check if this is the summary row
-                first_cell = str(row[0]) if row[0] else ""
-                
-                # Check if all keywords are present
+                first_cell = str(row[0])
+
+                # Collect GES rows (stations)
+                if ("ГЭС" in first_cell or "КГЭС" in first_cell) and "Ўзбекгидроэнерго" not in first_cell:
+                    ges_rows.append(row)
+
+                # Find summary row
                 if all(keyword in first_cell for keyword in self.SUMMARY_ROW_KEYWORDS):
+                    summary_row = row
+                    summary_row_idx = row_idx
                     logger.debug(
                         "summary_row_found",
                         table_index=table_idx,
@@ -157,65 +165,129 @@ class PDFParser:
                         row_length=len(row),
                     )
 
-                    # If we found the target column index, use it directly
-                    if target_col_idx is not None:
-                        if target_col_idx < len(row):
-                            val = self._parse_decimal(row[target_col_idx])
-                            if val is not None:
-                                return val
-                            logger.warning(
-                                "target_column_value_invalid", 
-                                value=row[target_col_idx], 
-                                col_idx=target_col_idx
-                            )
-                        else:
-                            logger.warning(
-                                "target_column_index_out_of_bounds", 
-                                col_idx=target_col_idx, 
-                                row_length=len(row)
-                            )
+        if not summary_row:
+            raise DataExtractionError(
+                f"Summary row '{' '.join(self.SUMMARY_ROW_KEYWORDS)}' not found in PDF tables"
+            )
 
-                    # Fallback: Scan row for reasonable energy value
-                    logger.info("falling_back_to_row_scan")
-                    energy = self._extract_energy_from_row(row)
-                    return energy
+        # Find the target column by checking which one is the sum of GES rows
+        target_col_idx = self._find_sum_column(ges_rows, summary_row)
 
-        raise DataExtractionError(
-            f"Summary row '{' '.join(self.SUMMARY_ROW_KEYWORDS)}' not found in PDF tables"
-        )
+        if target_col_idx is not None:
+            val = self._parse_decimal(summary_row[target_col_idx])
+            if val is not None:
+                logger.info(
+                    "energy_extracted_from_sum_column",
+                    col_index=target_col_idx,
+                    value=str(val),
+                )
+                return val
 
-    def _find_target_column_index(self, tables: list[list[list[Any]]]) -> int | None:
-        """Find the index of the column with the specific header.
-        
-        Searches for header: "1 кунда ишлаб чиқарилган электр энергия, млн.кВт.соат"
-        Handles reversed text which often occurs in these PDFs.
+        # Fallback: Scan row for reasonable energy value
+        logger.warning("falling_back_to_row_scan")
+        energy = self._extract_energy_from_row(summary_row)
+        return energy
+
+    def _find_sum_column(self, ges_rows: list[list[Any]], summary_row: list[Any]) -> int | None:
+        """Find column where summary value equals sum of GES rows.
+
+        Args:
+            ges_rows: List of GES station rows
+            summary_row: Summary row with totals
+
+        Returns:
+            Column index where sum matches, or None if not found
         """
-        # Keywords to look for (using minimal distinct set)
-        # "1 кунда" (1 day) is very distinct
-        # "ишлаб" (produced/working)
-        keywords_normal = ["1 кунда", "ишлаб"]
-        keywords_reversed = ["аднук 1", "балш"] # "балш" is part of "ишлаб" reversed ("балши")
+        # Check columns that might contain energy values (typically 15-25)
+        # Energy should be in reasonable range: 0.1 to 1000 million kWh
+        MIN_ENERGY = Decimal("0.1")
+        MAX_ENERGY = Decimal("1000")
 
-        for table in tables:
-            # Check first few rows for header
-            for row in table[:5]:
-                for col_idx, cell in enumerate(row):
-                    if not cell:
-                        continue
-                        
-                    text = str(cell).replace("\n", " ").strip()
-                    
-                    # Check normal
-                    if all(k in text for k in keywords_normal):
-                        logger.info("target_header_found", col_index=col_idx, mode="normal")
-                        return col_idx
-                        
-                    # Check reversed
-                    if all(k in text for k in keywords_reversed):
-                        logger.info("target_header_found", col_index=col_idx, mode="reversed")
-                        return col_idx
-        
-        logger.warning("target_header_not_found")
+        candidates = []
+
+        for col_idx in range(15, min(26, len(summary_row))):
+            cell_raw = str(summary_row[col_idx]).strip() if summary_row[col_idx] else ""
+
+            # Skip columns that are deltas (start with + or -)
+            # Energy production is always positive without explicit sign
+            if cell_raw.startswith('+') or cell_raw.startswith('-'):
+                continue
+
+            summary_val = self._parse_decimal(summary_row[col_idx])
+            if summary_val is None:
+                continue
+
+            # Check if value is in reasonable range for energy
+            if not (MIN_ENERGY <= abs(summary_val) <= MAX_ENERGY):
+                continue
+
+            # Skip columns with large integer values (likely aggregates count, not energy)
+            # Energy values are typically decimal numbers < 100
+            if summary_val == summary_val.to_integral_value() and summary_val > Decimal("50"):
+                logger.debug(
+                    "skipping_large_integer_column",
+                    col_index=col_idx,
+                    value=str(summary_val),
+                    reason="likely_aggregates_count",
+                )
+                continue
+
+            # Sum all GES rows for this column
+            total = Decimal("0")
+            valid_count = 0
+
+            for ges_row in ges_rows:
+                if col_idx < len(ges_row):
+                    val = self._parse_decimal(ges_row[col_idx])
+                    if val is not None:
+                        total += val
+                        valid_count += 1
+
+            # Check if sum matches (allow small difference for rounding)
+            difference = abs(summary_val - total)
+
+            if difference < Decimal("1.0") and valid_count > 0:
+                candidates.append({
+                    "col_idx": col_idx,
+                    "summary_val": summary_val,
+                    "total": total,
+                    "difference": difference,
+                    "valid_count": valid_count,
+                })
+
+                logger.debug(
+                    "sum_column_candidate",
+                    col_index=col_idx,
+                    summary_value=str(summary_val),
+                    ges_sum=str(total),
+                    difference=str(difference),
+                    ges_count=valid_count,
+                )
+
+        # If we have candidates, pick the one with the smallest difference
+        # and value in typical energy range (5-50 million kWh for daily production)
+        if candidates:
+            # Prefer values in typical range
+            typical_candidates = [
+                c for c in candidates
+                if Decimal("5") <= c["summary_val"] <= Decimal("50")
+            ]
+
+            if typical_candidates:
+                best = min(typical_candidates, key=lambda x: x["difference"])
+            else:
+                best = min(candidates, key=lambda x: x["difference"])
+
+            logger.info(
+                "sum_column_found",
+                col_index=best["col_idx"],
+                summary_value=str(best["summary_val"]),
+                ges_sum=str(best["total"]),
+                difference=str(best["difference"]),
+            )
+            return best["col_idx"]
+
+        logger.warning("sum_column_not_found")
         return None
 
     def _parse_decimal(self, value: Any) -> Decimal | None:
