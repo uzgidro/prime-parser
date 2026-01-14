@@ -25,6 +25,9 @@ class PDFParser:
     # Date pattern: "8.01.2026 й."
     DATE_PATTERN = r"(\d{1,2})\.(\d{2})\.(\d{4})\s*й\."
 
+    # Explicit column index for daily energy production value
+    ENERGY_COLUMN_INDEX = 19
+
     def parse_pdf(self, pdf_path: Path) -> HydropowerReport:
         """Parse PDF file and extract hydropower data.
 
@@ -138,8 +141,6 @@ class PDFParser:
         Raises:
             DataExtractionError: If summary row not found or energy cannot be parsed
         """
-        target_col_idx = self._find_target_column_index(tables)
-        
         for table_idx, table in enumerate(tables):
             for row_idx, row in enumerate(table):
                 if not row:
@@ -147,7 +148,7 @@ class PDFParser:
 
                 # Check if this is the summary row
                 first_cell = str(row[0]) if row[0] else ""
-                
+
                 # Check if all keywords are present
                 if all(keyword in first_cell for keyword in self.SUMMARY_ROW_KEYWORDS):
                     logger.debug(
@@ -155,25 +156,31 @@ class PDFParser:
                         table_index=table_idx,
                         row_index=row_idx,
                         row_length=len(row),
+                        row_data=row,
                     )
 
-                    # If we found the target column index, use it directly
-                    if target_col_idx is not None:
-                        if target_col_idx < len(row):
-                            val = self._parse_decimal(row[target_col_idx])
-                            if val is not None:
-                                return val
-                            logger.warning(
-                                "target_column_value_invalid", 
-                                value=row[target_col_idx], 
-                                col_idx=target_col_idx
+                    # Use explicit column index
+                    if self.ENERGY_COLUMN_INDEX < len(row):
+                        val = self._parse_decimal(row[self.ENERGY_COLUMN_INDEX])
+                        if val is not None:
+                            logger.info(
+                                "energy_extracted_from_column",
+                                col_idx=self.ENERGY_COLUMN_INDEX,
+                                raw_value=row[self.ENERGY_COLUMN_INDEX],
+                                parsed_value=str(val),
                             )
-                        else:
-                            logger.warning(
-                                "target_column_index_out_of_bounds", 
-                                col_idx=target_col_idx, 
-                                row_length=len(row)
-                            )
+                            return val
+                        logger.warning(
+                            "target_column_value_invalid",
+                            value=row[self.ENERGY_COLUMN_INDEX],
+                            col_idx=self.ENERGY_COLUMN_INDEX
+                        )
+                    else:
+                        logger.warning(
+                            "target_column_index_out_of_bounds",
+                            col_idx=self.ENERGY_COLUMN_INDEX,
+                            row_length=len(row)
+                        )
 
                     # Fallback: Scan row for reasonable energy value
                     logger.info("falling_back_to_row_scan")
