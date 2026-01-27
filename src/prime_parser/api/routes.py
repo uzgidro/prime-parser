@@ -8,14 +8,12 @@ from pathlib import Path
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
 
-from prime_parser.clients.http_client import HTTPClient
-from prime_parser.configuration.settings import Settings
-from prime_parser.core.pdf_parser import PDFParser
-from prime_parser.models.domain_models import ParsedData
-from prime_parser.utils.exceptions import DataExtractionError, ForwardingError, PDFParsingError
-from prime_parser.api.dependencies import get_settings_dependency, validate_api_key
+from src.prime_parser.api.dependencies import get_settings_dependency, validate_api_key
+from src.prime_parser.clients.http_client import HTTPClient
+from src.prime_parser.configuration.settings import Settings
+from src.prime_parser.core.pdf_parser import PDFParser
+from src.prime_parser.utils.exceptions import DataExtractionError, ForwardingError, PDFParsingError
 
 logger = structlog.get_logger()
 
@@ -26,9 +24,9 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 
 async def process_pdf_background(
-    temp_file_path: Path,
-    request_id: int,
-    settings: Settings,
+        temp_file_path: Path,
+        request_id: int,
+        settings: Settings,
 ) -> None:
     """Process PDF in background: parse and forward data.
 
@@ -107,10 +105,10 @@ async def process_pdf_background(
     description="Accept PDF file, return 202 immediately, parse and forward data in background",
 )
 async def parse_pdf_endpoint(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(..., description="PDF file to parse"),
-    api_key: str = Depends(validate_api_key),
-    settings: Settings = Depends(get_settings_dependency),
+        background_tasks: BackgroundTasks,
+        file: UploadFile = File(..., description="PDF file to parse"),
+        api_key: str = Depends(validate_api_key),
+        settings: Settings = Depends(get_settings_dependency),
 ) -> dict:
     """Parse PDF file and forward data to external service asynchronously.
 
@@ -192,11 +190,11 @@ async def parse_pdf_endpoint(
                 os.unlink(temp_file_path)
             except Exception:
                 pass
-        
+
         # Log and re-raise
         if isinstance(e, HTTPException):
             raise
-            
+
         logger.error("request_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

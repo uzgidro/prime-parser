@@ -7,9 +7,9 @@ import structlog
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from prime_parser.api.routes import router
-from prime_parser.configuration.settings import get_settings
-from prime_parser.utils.exceptions import ConfigurationError
+from src.prime_parser.api.routes import router
+from src.prime_parser.configuration.settings import get_settings
+from src.prime_parser.utils.exceptions import ConfigurationError
 
 
 def configure_logging(log_level: str = "INFO") -> None:
@@ -37,6 +37,7 @@ def configure_logging(log_level: str = "INFO") -> None:
 
 
 from typing import AsyncGenerator
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:

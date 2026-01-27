@@ -11,11 +11,11 @@ T = TypeVar("T")
 
 
 async def retry_with_backoff(
-    func: Callable[[], Awaitable[T]],
-    max_attempts: int,
-    backoff_factor: float,
-    max_delay: float,
-    exceptions: tuple[type[Exception], ...] = (Exception,),
+        func: Callable[[], Awaitable[T]],
+        max_attempts: int,
+        backoff_factor: float,
+        max_delay: float,
+        exceptions: tuple[type[Exception], ...] = (Exception,),
 ) -> T:
     """Retry async function with exponential backoff.
 
@@ -50,7 +50,7 @@ async def retry_with_backoff(
                 raise
 
             # Calculate delay with exponential backoff
-            delay = min(backoff_factor**attempt, max_delay)
+            delay = min(backoff_factor ** attempt, max_delay)
 
             logger.warning(
                 "retry_attempt",

@@ -84,3 +84,6 @@ config/
 .claude/
 template/
 nul
+
+/prime-parser
+/config
