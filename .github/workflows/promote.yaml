@@ -46,7 +46,7 @@ jobs:
 
           # Коммит и пуш если есть изменения
           if [[ -n $(git status --porcelain) ]]; then
-            git add apps/lex-parser/overlays/prod/kustomization.yaml
+            git add apps/prime-parser/overlays/prod/kustomization.yaml
             git commit -m "deploy(prod): ${{ inputs.image_tag }}"
             git push
           else
