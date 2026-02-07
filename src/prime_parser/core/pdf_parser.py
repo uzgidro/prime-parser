@@ -25,8 +25,10 @@ class PDFParser:
     # Date pattern: "8.01.2026 й."
     DATE_PATTERN = r"(\d{1,2})\.(\d{2})\.(\d{4})\s*й\."
 
-    # Explicit column index for daily energy production value
-    ENERGY_COLUMN_INDEX = 19
+    # Explicit column indices for energy production values
+    DAILY_ENERGY_COLUMN_INDEX = 19
+    MONTHLY_ENERGY_COLUMN_INDEX = 21
+    YEARLY_ENERGY_COLUMN_INDEX = 22
 
     def parse_pdf(self, pdf_path: Path) -> HydropowerReport:
         """Parse PDF file and extract hydropower data.
@@ -60,9 +62,14 @@ class PDFParser:
                         table_count=len(page_tables),
                     )
 
-                # 3. Find summary row with total energy
-                total_energy = self._find_total_energy(tables)
-                logger.info("total_energy_extracted", energy=str(total_energy))
+                # 3. Find summary row with total energy (daily, monthly, yearly)
+                daily_energy, monthly_energy, yearly_energy = self._find_total_energy(tables)
+                logger.info(
+                    "energy_extracted",
+                    daily=str(daily_energy),
+                    monthly=str(monthly_energy),
+                    yearly=str(yearly_energy),
+                )
 
                 # 4. Extract all station data (for future use)
                 stations = self._extract_stations(tables)
@@ -70,14 +77,18 @@ class PDFParser:
 
                 report = HydropowerReport(
                     report_date=report_date,
-                    total_daily_energy_million_kwh=total_energy,
+                    total_daily_energy_million_kwh=daily_energy,
+                    total_monthly_energy_million_kwh=monthly_energy,
+                    total_yearly_energy_million_kwh=yearly_energy,
                     stations=stations,
                 )
 
                 logger.info(
                     "parsing_pdf_completed",
                     date=report_date.isoformat(),
-                    total_energy=str(total_energy),
+                    daily_energy=str(daily_energy),
+                    monthly_energy=str(monthly_energy),
+                    yearly_energy=str(yearly_energy),
                     stations_count=len(stations),
                 )
 
@@ -129,14 +140,16 @@ class PDFParser:
         except ValueError as e:
             raise DataExtractionError(f"Invalid date values extracted: {e}") from e
 
-    def _find_total_energy(self, tables: list[list[list[Any]]]) -> Decimal:
+    def _find_total_energy(
+        self, tables: list[list[list[Any]]]
+    ) -> tuple[Decimal, Decimal, Decimal]:
         """Find total energy production from summary row.
 
         Args:
             tables: List of tables extracted from PDF
 
         Returns:
-            Total daily energy production in million kWh
+            Tuple of (daily, monthly, yearly) energy production in million kWh
 
         Raises:
             DataExtractionError: If summary row not found or energy cannot be parsed
@@ -159,36 +172,67 @@ class PDFParser:
                         row_data=row,
                     )
 
-                    # Use explicit column index
-                    if self.ENERGY_COLUMN_INDEX < len(row):
-                        val = self._parse_decimal(row[self.ENERGY_COLUMN_INDEX])
-                        if val is not None:
-                            logger.info(
-                                "energy_extracted_from_column",
-                                col_idx=self.ENERGY_COLUMN_INDEX,
-                                raw_value=row[self.ENERGY_COLUMN_INDEX],
-                                parsed_value=str(val),
-                            )
-                            return val
-                        logger.warning(
-                            "target_column_value_invalid",
-                            value=row[self.ENERGY_COLUMN_INDEX],
-                            col_idx=self.ENERGY_COLUMN_INDEX
-                        )
-                    else:
-                        logger.warning(
-                            "target_column_index_out_of_bounds",
-                            col_idx=self.ENERGY_COLUMN_INDEX,
-                            row_length=len(row)
-                        )
+                    # Extract daily energy from column 19
+                    daily_energy = self._extract_energy_from_column(
+                        row, self.DAILY_ENERGY_COLUMN_INDEX, "daily"
+                    )
 
-                    # Fallback: Scan row for reasonable energy value
-                    logger.info("falling_back_to_row_scan")
-                    energy = self._extract_energy_from_row(row)
-                    return energy
+                    # Extract monthly energy from column 21
+                    monthly_energy = self._extract_energy_from_column(
+                        row, self.MONTHLY_ENERGY_COLUMN_INDEX, "monthly"
+                    )
+
+                    # Extract yearly energy from column 22
+                    yearly_energy = self._extract_energy_from_column(
+                        row, self.YEARLY_ENERGY_COLUMN_INDEX, "yearly"
+                    )
+
+                    return daily_energy, monthly_energy, yearly_energy
 
         raise DataExtractionError(
             f"Summary row '{' '.join(self.SUMMARY_ROW_KEYWORDS)}' not found in PDF tables"
+        )
+
+    def _extract_energy_from_column(
+        self, row: list[Any], col_idx: int, energy_type: str
+    ) -> Decimal:
+        """Extract energy value from a specific column.
+
+        Args:
+            row: Table row containing data
+            col_idx: Column index to extract from
+            energy_type: Type of energy for logging (daily/monthly/yearly)
+
+        Returns:
+            Energy value as Decimal
+
+        Raises:
+            DataExtractionError: If energy value cannot be extracted
+        """
+        if col_idx < len(row):
+            val = self._parse_decimal(row[col_idx])
+            if val is not None:
+                logger.info(
+                    f"{energy_type}_energy_extracted_from_column",
+                    col_idx=col_idx,
+                    raw_value=row[col_idx],
+                    parsed_value=str(val),
+                )
+                return val
+            logger.warning(
+                f"{energy_type}_column_value_invalid",
+                value=row[col_idx],
+                col_idx=col_idx,
+            )
+        else:
+            logger.warning(
+                f"{energy_type}_column_index_out_of_bounds",
+                col_idx=col_idx,
+                row_length=len(row),
+            )
+
+        raise DataExtractionError(
+            f"Could not extract {energy_type} energy from column {col_idx}"
         )
 
     def _find_target_column_index(self, tables: list[list[list[Any]]]) -> int | None:
@@ -307,4 +351,6 @@ class PDFParser:
         return ParsedData(
             date=report.report_date,
             total_energy_production=report.total_daily_energy_million_kwh,
+            monthly_energy_production=report.total_monthly_energy_million_kwh,
+            yearly_energy_production=report.total_yearly_energy_million_kwh,
         )

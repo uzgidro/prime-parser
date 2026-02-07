@@ -45,7 +45,9 @@ class HTTPClient:
             "sending_data_started",
             endpoint=self.config.endpoint,
             date=data.report_date.isoformat(),
-            total_energy=str(data.total_energy_production),
+            daily_energy=str(data.total_energy_production),
+            monthly_energy=str(data.monthly_energy_production),
+            yearly_energy=str(data.yearly_energy_production),
         )
 
         try:
@@ -91,6 +93,8 @@ class HTTPClient:
         payload = {
             "date": data.report_date.isoformat(),
             "total_energy_production": float(data.total_energy_production),
+            "monthly_energy_production": float(data.monthly_energy_production),
+            "yearly_energy_production": float(data.yearly_energy_production),
         }
 
         headers = {

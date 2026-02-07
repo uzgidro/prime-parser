@@ -38,17 +38,29 @@ class HydropowerReport(BaseModel):
     total_daily_energy_million_kwh: Decimal = Field(
         ..., description="Total daily energy production for Uzbekgidroenergo"
     )
+    total_monthly_energy_million_kwh: Decimal = Field(
+        ..., description="Total monthly energy production for Uzbekgidroenergo"
+    )
+    total_yearly_energy_million_kwh: Decimal = Field(
+        ..., description="Total yearly energy production for Uzbekgidroenergo"
+    )
     stations: list[StationData] = Field(
         default_factory=list, description="All station data"
     )
 
 
 class ParsedData(BaseModel):
-    """Parsed data for API response (current version - only date and total energy)."""
+    """Parsed data for API response."""
 
     report_date: date = Field(..., description="Report date", alias="date")
     total_energy_production: Decimal = Field(
         ..., description="Total daily energy production in million kWh"
+    )
+    monthly_energy_production: Decimal = Field(
+        ..., description="Total monthly energy production in million kWh"
+    )
+    yearly_energy_production: Decimal = Field(
+        ..., description="Total yearly energy production in million kWh"
     )
 
     model_config = ConfigDict(
@@ -56,7 +68,9 @@ class ParsedData(BaseModel):
         json_schema_extra={
             "example": {
                 "date": "2026-01-08",
-                "total_energy_production": 81.03
+                "total_energy_production": 81.03,
+                "monthly_energy_production": 648.24,
+                "yearly_energy_production": 648.24
             }
         }
     )
